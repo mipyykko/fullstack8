@@ -1,26 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation } from 'react-apollo-hooks'
-import { gql } from 'apollo-boost'
+import { ALL_AUTHORS, EDIT_AUTHOR } from '../gql'
 import Select from 'react-select'
-
-const ALL_AUTHORS = gql`
-{
-  allAuthors {
-    name
-    born
-    bookCount
-  }
-}
-`
-
-const EDIT_AUTHOR = gql`
-mutation editAuthor($name: String!, $born: Int!) {
-  editAuthor(name: $name, setBornTo: $born) {
-    name
-    born
-  }
-}
-`
 
 const Authors = (props) => {
   const [author, setAuthor] = useState('')
@@ -29,6 +10,11 @@ const Authors = (props) => {
   const editAuthor = useMutation(EDIT_AUTHOR)
   const { data, error, loading } = useQuery(ALL_AUTHORS)
 
+  if (error) {
+    props.handleError(error)
+  }
+
+  
   if (!props.show) {
     return null
   }
@@ -36,10 +22,15 @@ const Authors = (props) => {
   const submit = async (e) => {
     e.preventDefault()
     
-    const editedAuthor = await editAuthor({
-      variables: { name: author, born: Number(born) },
-      refetchQueries: [{ query: ALL_AUTHORS }]
-    })
+    try {
+      await editAuthor({
+        onError: props.handleError,
+        variables: { name: author, born: Number(born) },
+        refetchQueries: [{ query: ALL_AUTHORS }]
+      })
+    } catch (error) {
+      props.handleError(error)
+    }
 
     setAuthor('')
     setBorn('')

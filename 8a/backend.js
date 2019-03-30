@@ -1,7 +1,22 @@
-const { ApolloServer, gql } = require('apollo-server')
+const { ApolloServer, gql, UserInputError } = require('apollo-server')
 const uuid = require('uuid/v1')
+const mongoose = require('mongoose')
+const Book = require('./models/book')
+const Author = require('./models/author')
 
-var authors = [
+mongoose.set('useFindAndModify', false)
+
+const MONGODB_URI = 'mongodb://127.0.0.1:27017/graphql?retryWrites=true'//'mongodb+srv://fullstack:fullstack@cluster0-ostce.mongodb.net/graphql?retryWrites=true'
+
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true })
+  .then(() => {
+    console.log('connected to MongoDB')
+  })
+  .catch((error) => {
+    console.log('error connection to MongoDB:', error.message)
+  })
+
+/* var authors = [
   {
     name: 'Robert Martin',
     id: "afa51ab0-344d-11e9-a414-719c6709cf3e",
@@ -26,13 +41,13 @@ var authors = [
     id: "afa5b6f3-344d-11e9-a414-719c6709cf3e",
   },
 ]
-
+ */
 /*
  * Saattaisi olla järkevämpää assosioida kirja ja sen tekijä tallettamalla kirjan yhteyteen tekijän nimen sijaan tekijän id
  * Yksinkertaisuuden vuoksi tallennamme kuitenkin kirjan yhteyteen tekijän nimen
 */
 
-var books = [
+/* var books = [
   {
     title: 'Clean Code',
     published: 2008,
@@ -83,7 +98,7 @@ var books = [
     genres: ['classic', 'revolution']
   },
 ]
-
+ */
 const typeDefs = gql`
   type Author {
     name: String!,
@@ -94,9 +109,9 @@ const typeDefs = gql`
   type Book {
     title: String!,
     published: Int!,
-    author: String!,
+    author: Author!,
     id: ID!,
-    genres: [String]
+    genres: [String!]!
   }
 
   type AuthorResult {
@@ -128,37 +143,60 @@ const typeDefs = gql`
 
 const resolvers = {
   Query: {
-    bookCount: () => books.length,
-    authorCount: () => authors.length,
-    allBooks: (_, args) => {
-      const result = args.author ? books.filter(b => b.author === args.author) : books
+    bookCount: () => Book.collection.countDocuments(),
+    authorCount: () => Author.collection.countDocuments(),
+    allBooks: async (_, args) => {
+      const res = await Book.aggregate([
+        { $lookup: { from: "authors", localField: "author", foreignField: "_id", as: "author"} },
+        args.author ? { $match: { "author.name": args.author }} : { $match: {} },
+        args.genre ? { $match: { genres: { $in: [args.genre ]}}} : { $match: {} },
+        { $project: { _id: 1, title: 1, published: 1, genres: 1, author: { $arrayElemAt: [ "$author", 0 ] }}}
+      ])
 
-      return args.genre ? result.filter(b => b.genres.indexOf(args.genre) >= 0) : result
+      return res
     },
-    allAuthors: () => authors.map(a => ({ ...a, bookCount: books.filter(b => b.author === a.name).length }))
+    allAuthors: async () => {
+      const authors = await Author.aggregate([
+      { $lookup: { from: "books", localField: "_id", foreignField: "author", as: "books" } }, 
+      { $project: { name: 1, born: 1, bookCount: { $size: "$books" } } }])
+
+      return authors }
   },
   Mutation: {
-    addBook: (root, args) => {
-      const author = authors.find(a => a.name === args.author)
+    addBook: async (root, args) => {
+      var author = await Author.findOne({ name: args.author })
 
       if (!author) {
-        authors = authors.concat({ name: args.author })
+        author = new Author({ name: args.author })
+        try {
+          author = await author.save()
+        } catch (error) {
+          throw new UserInputError(error.message, { invalidArgs: args })
+        }
       }
 
-      const book = { ...args, id: uuid() }
-
-      books = books.concat(book)
+      var book = new Book({ ...args, author })
+      try {
+        book = await book.save()
+      } catch (error) {
+        throw new UserInputError(error.message, { invalidArgs: args })
+      }
 
       return book
     },
-    editAuthor: (root, args) => {
-      const author = authors.find(a => a.name === args.name)
+    editAuthor: async (root, args) => {
+      var author = await Author.findOne({ name: args.name })
 
       if (!author) {
         return null
       }
 
       author.born = args.setBornTo
+      try {
+        author = await author.save()
+      } catch (error) {
+        throw new UserInputError(error.message, { invalidArgs: args })
+      }
 
       return author
     }

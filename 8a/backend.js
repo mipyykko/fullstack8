@@ -138,7 +138,8 @@ const typeDefs = gql`
     bookCount: Int!,
     authorCount: Int!
     allBooks(author: String, genre: String): [Book],
-    allAuthors: [AuthorResult]
+    allAuthors: [AuthorResult],
+    allGenres: [String],
     me: User
   }
 
@@ -185,6 +186,7 @@ const resolvers = {
 
       return authors 
     },
+    allGenres: async () => Book.distinct("genres"),
     me: (root, args, context) => {
       return context.currentUser
     }    

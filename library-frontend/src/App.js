@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { useMutation, useApolloClient } from 'react-apollo-hooks'
-
+import { useQuery, useApolloClient } from 'react-apollo-hooks'
 import Authors from './components/Authors'
 import Books from './components/Books'
 import NewBook from './components/NewBook'
+import Recommend from './components/Recommend'
 import LoginForm from './components/LoginForm'
-import { LOGIN } from './gql'
+
+import { ME } from './gql'
 
 const App = () => {
   const [page, setPage] = useState('authors')
@@ -26,14 +27,13 @@ const App = () => {
     client.resetStore()
   }
 
-  console.log(token)
-
   return (
     <div>
       <div>
         <button onClick={() => setPage('authors')}>authors</button>
         <button onClick={() => setPage('books')}>books</button>
         {token && <button onClick={() => setPage('add')}>add book</button>}
+        {token && <button onClick={() => setPage('recommend')}>recommend</button>}
         {!token ? 
           <button onClick={() => setPage('login')}>login</button> :
           <button onClick={() => logout()}>logout</button>}
@@ -48,6 +48,11 @@ const App = () => {
 
       <Books
         show={page === 'books'}
+        handleError={handleError}
+      />
+
+      <Recommend
+        show={page === 'recommend'}
         handleError={handleError}
       />
 

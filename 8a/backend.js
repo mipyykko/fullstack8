@@ -187,7 +187,6 @@ const resolvers = {
       return res
     },
     allAuthors: async () => {
-      console.log("author aggregate")
       const authors = await Author.aggregate([
       { $lookup: { from: "books", localField: "_id", foreignField: "author", as: "books" } }, 
       { $project: { name: 1, born: 1, bookCount: { $size: "$books" } } }])

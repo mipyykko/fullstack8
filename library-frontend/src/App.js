@@ -19,13 +19,12 @@ const App = () => {
   
   const { data, error, loading } = useSubscription(BOOK_ADDED, {
     onSubscriptionData: ({ client, subscriptionData }) => {
-      console.log('subscription subdata', subscriptionData)
       const addedBook = subscriptionData.data.bookAdded
       notify(`${addedBook.title} added`)
 
       const dataInStore = client.readQuery({ query: ALL_BOOKS })
       
-      console.log('subscription', dataInStore)
+      if (!dataInStore.allBooks) { return }
 
       if (!includedIn(dataInStore.allBooks, addedBook)) {
         dataInStore.allBooks.push(addedBook)
@@ -60,11 +59,8 @@ const App = () => {
   const addBook = useMutation(ADD_BOOK, {
     onError: handleError,
     update: (store, response) => {
-      console.log('mutation res', response)
       const dataInStore = store.readQuery({ query: ALL_BOOKS })
       const addedBook = response.data.addedBook
-
-      console.log('mutation', dataInStore)
 
       if (!includedIn(dataInStore.allBooks, addedBook)) {
         dataInStore.allBooks.push(addedBook)

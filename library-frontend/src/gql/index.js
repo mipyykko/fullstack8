@@ -1,5 +1,17 @@
 import { gql } from 'apollo-boost'
 
+const BOOK_DETAILS = gql`
+fragment BookDetails on Book {
+  title
+  published
+  author {
+    name
+    born
+  }
+  genres
+}
+`
+
 export const ADD_BOOK = gql`
 mutation addBook($title: String!, $published: Int!, $author: String!, $genres: [String!]!) {
   addBook(
@@ -8,29 +20,28 @@ mutation addBook($title: String!, $published: Int!, $author: String!, $genres: [
     author: $author,
     genres: $genres
   ) {
-    title
-    published
-    author {
-      name
-      born
-    }
-    genres
+    ...BookDetails
   }
 }
+${BOOK_DETAILS}
 `
 
 export const ALL_BOOKS = gql`
 {
   allBooks {
-    title
-    author { 
-      name
-      born
-    }
-    published
-    genres
+    ...BookDetails
   }
 }
+${BOOK_DETAILS}
+`
+
+export const BOOK_ADDED = gql`
+subscription {
+  bookAdded {
+    ...BookDetails
+  }
+}
+${BOOK_DETAILS}
 `
 
 export const ALL_AUTHORS = gql`

@@ -1,19 +1,49 @@
 import React, { useState } from 'react'
-import { useQuery, useApolloClient } from 'react-apollo-hooks'
+import { useMutation, useApolloClient, useSubscription } from 'react-apollo-hooks'
 import Authors from './components/Authors'
 import Books from './components/Books'
 import NewBook from './components/NewBook'
 import Recommend from './components/Recommend'
 import LoginForm from './components/LoginForm'
 
-import { ME } from './gql'
+import { BOOK_ADDED, ALL_BOOKS, ADD_BOOK } from './gql'
+
+const includedIn = (set, object) => 
+    set.map(p => p.id).includes(object.id)  
 
 const App = () => {
   const [page, setPage] = useState('authors')
   const [errorMessage, setErrorMessage] = useState(null)
   const [token, setToken] = useState(null)
   const client = useApolloClient()
+  
+  const { data, error, loading } = useSubscription(BOOK_ADDED, {
+    onSubscriptionData: ({ client, subscriptionData }) => {
+      console.log('subscription subdata', subscriptionData)
+      const addedBook = subscriptionData.data.bookAdded
+      notify(`${addedBook.title} added`)
 
+      const dataInStore = client.readQuery({ query: ALL_BOOKS })
+      
+      console.log('subscription', dataInStore)
+
+      if (!includedIn(dataInStore.allBooks, addedBook)) {
+        dataInStore.allBooks.push(addedBook)
+        client.writeQuery({
+          query: ALL_BOOKS,
+          data: dataInStore
+        })
+      }
+    }
+  })
+
+  const notify = (message) => {
+    setErrorMessage(message)
+    setTimeout(() => {
+      setErrorMessage(null)
+    }, 2000)
+  }
+  
   const handleError = (error) => {
     setErrorMessage(error.graphQLErrors[0].message)
     setTimeout(() => {
@@ -26,6 +56,25 @@ const App = () => {
     localStorage.clear()
     client.resetStore()
   }
+
+  const addBook = useMutation(ADD_BOOK, {
+    onError: handleError,
+    update: (store, response) => {
+      console.log('mutation res', response)
+      const dataInStore = store.readQuery({ query: ALL_BOOKS })
+      const addedBook = response.data.addedBook
+
+      console.log('mutation', dataInStore)
+
+      if (!includedIn(dataInStore.allBooks, addedBook)) {
+        dataInStore.allBooks.push(addedBook)
+        client.writeQuery({
+          query: ALL_BOOKS,
+          data: dataInStore
+        })
+      }
+    }
+  })
 
   return (
     <div>
@@ -58,6 +107,7 @@ const App = () => {
 
       <NewBook
         show={page === 'add'}
+        addBook={addBook}
         handleError={handleError}
       />
 

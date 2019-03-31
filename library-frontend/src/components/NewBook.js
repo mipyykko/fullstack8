@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { useMutation } from 'react-apollo-hooks'
-import { ADD_BOOK, ALL_AUTHORS, ALL_BOOKS } from '../gql'
+import { ALL_AUTHORS, ALL_BOOKS } from '../gql'
+
 
 const NewBook = (props) => {
   const [title, setTitle] = useState('')
@@ -8,8 +8,6 @@ const NewBook = (props) => {
   const [published, setPublished] = useState('')
   const [genre, setGenre] = useState('')
   const [genres, setGenres] = useState([])
-
-  const addBook = useMutation(ADD_BOOK)
 
   if (!props.show) {
     return null
@@ -19,11 +17,11 @@ const NewBook = (props) => {
     e.preventDefault()
     
     try {
-      await addBook({
-      onError: props.handleError,
-      variables: { title, published: Number(published), author, genres },
-      refetchQueries: [{ query: ALL_AUTHORS }, { query: ALL_BOOKS }]
-    })
+      await props.addBook({
+        onError: props.handleError,
+        variables: { title, published: Number(published), author, genres },
+        //refetchQueries: [{ query: ALL_AUTHORS }, { query: ALL_BOOKS }]
+      })
     } catch (error) {
       props.handleError(error)
     }
